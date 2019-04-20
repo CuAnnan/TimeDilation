@@ -52,7 +52,7 @@
                             ship.$elem = createShipElement(i, ship).appendTo($ships);
                         }
                         updateShipElement(ship);
-                        $('#globalTickCounter').text(this.ticks);
+                        $('#globalTimer').text(this.ticks/1000);
                     }
                 });
 
