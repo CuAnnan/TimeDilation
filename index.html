@@ -39,8 +39,8 @@
                     $('.shipDistance', $elem).text(ship.distance.toPrecision(6));
                     $('.shipVelocity', $elem).text(ship.velocity.toPrecision(6));
                     $('.shipMass', $elem).text(ship.mass.toPrecision(2));
-                    $('.shipTime', $elem).text(ship.relativeTime.toPrecision(2));
                     $('.shipFuelFlow', $elem).text(ship.fuelFlow.toPrecision(2));
+                    $('.shipTime', $elem).text(ship.relativeTime.toPrecision(2));
                 }
 
                 Game.render(function(a){
@@ -52,8 +52,8 @@
                             ship.$elem = createShipElement(i, ship).appendTo($ships);
                         }
                         updateShipElement(ship);
-                        $('#globalTimer').text(Math.round(this.ticks/100));
                     }
+                    $('#globalTimer').text(this.ticks/100);
                 });
 
             });
@@ -65,11 +65,11 @@
     <div class="row">
         <div class="col-1">
             <div class="row">
-                <button class="btn btn-warn" id="gameStateToggleBtn">Start</button>
+                <button class="btn btn-primary" id="gameStateToggleBtn">Start</button>
             </div>
             <div class="col">
                 <div class="row">Time:</div>
-                <div id="globalTimer"></div>
+                <div class="row" id="globalTimer"></div>
             </div>
 
         </div>
