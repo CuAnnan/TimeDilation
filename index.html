@@ -52,7 +52,7 @@
                             ship.$elem = createShipElement(i, ship).appendTo($ships);
                         }
                         updateShipElement(ship);
-                        $('#globalTimer').text(this.ticks/1000);
+                        $('#globalTimer').text(this.ticks/100);
                     }
                 });
 
@@ -68,7 +68,7 @@
                 <button class="btn btn-warn" id="gameStateToggleBtn">Start</button>
             </div>
             <div class="col">
-                <div class="row">Ticks:</div>
+                <div class="row">Time:</div>
                 <div id="globalTickCounter"></div>
             </div>
 
