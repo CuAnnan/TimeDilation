@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Ship physics</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/big.js/5.2.2/big.min.js"></script>
+    <script type="text/javascript" src="./crudeMath.js"></script>
+    <script src="https://code.jquery.com/jquery-3.4.0.min.js" integrity="sha256-BJeo0qm959uMBGb65z40ejJYGSgR7REI4+CW1fNKwOg=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" type="text/css"/>
+    <script type="text/javascript" crossorigin="anonymous" src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script type="text/javascript" crossorigin="anonymous" src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+    <script type="text/javascript">
+        (function($){
+            $(function() {
+
+                Game.addShip(new Ship({name:'Enterprise', mass:0.01, thrust:500000, fuelFlow:0.0001}))
+                    .addShip(new Ship({name:'Discovery', mass:0.01, thrust:400000, fuelFlow:0.0001}));
+
+                $('#gameStateToggleBtn').click(function (){
+                    let $btn = $(this);
+                    $btn.text(Game.ticking?'Start':'Stop');
+                    Game.toggle();
+                });
+                let $ships = $('#ships');
+
+                function createShipElement(index, ship)
+                {
+                    let $elem = $('#shipColumnMaster').clone().removeAttr('style').removeAttr('id');
+                    $('.shipName', $elem).text(ship.name);
+                    $('.shipInitialMass', $elem).text(ship.mass);
+                    $('.shipThrust', $elem).text(ship.thrust);
+                    return $elem;
+                }
+
+                function updateShipElement(ship)
+                {
+                    $elem = ship.$elem;
+                    $('.shipGamma', $elem).text(ship.gamma.toPrecision(11));
+                    $('.shipDistance', $elem).text(ship.distance.toPrecision(6));
+                    $('.shipVelocity', $elem).text(ship.velocity.toPrecision(6));
+                    $('.shipMass', $elem).text(ship.mass.toPrecision(2));
+                    $('.shipTime', $elem).text(ship.relativeTime.toPrecision(2));
+                    $('.shipFuelFlow', $elem).text(ship.fuelFlow.toPrecision(2));
+                }
+
+                Game.render(function(a){
+                    for(let i in this.ships)
+                    {
+                        let ship = this.ships[i];
+                        if(!ship.$elem)
+                        {
+                            ship.$elem = createShipElement(i, ship).appendTo($ships);
+                        }
+                        updateShipElement(ship);
+                        $('#globalTickCounter').text(this.ticks);
+                    }
+                });
+
+            });
+        })(jQuery);
+    </script>
+</head>
+<body>
+<div class="container">
+    <div class="row">
+        <div class="col-1">
+            <div class="row">
+                <button class="btn btn-warn" id="gameStateToggleBtn">Start</button>
+            </div>
+            <div class="col">
+                <div class="row">Ticks:</div>
+                <div id="globalTickCounter"></div>
+            </div>
+
+        </div>
+        <div class="col">
+            <div class="row" id="ships"></div>
+        </div>
+    </div>
+</div>
+<div class="col ship" style="display:none" id="shipColumnMaster">
+    <div class="row">
+        <div class="col">Ship name:</div>
+        <div class="col shipName"></div>
+    </div>
+    <div class="row">
+        <div class="col">Thrust</div>
+        <div class="col shipThrust"></div>
+    </div>
+    <div class="row">
+        <div class="col">Fuel Flow:</div>
+        <div class="col shipFuelFlow"></div>
+    </div>
+    <div class="row">
+        <div class="col">Gamma</div>
+        <div class="col shipGamma"></div>
+    </div>
+    <div class="row">
+        <div class="col">Velocity</div>
+        <div class="col shipVelocity"></div>
+    </div>
+    <div class="row">
+        <div class="col">Distance</div>
+        <div class="col shipDistance"></div>
+    </div>
+    <div class="row">
+        <div class="col">Initial Mass</div>
+        <div class="col shipInitialMass"></div>
+    </div>
+    <div class="row">
+        <div class="col">Current Mass</div>
+        <div class="col shipMass"></div>
+    </div>
+    <div class="row">
+        <div class="col">Relative time</div>
+        <div class="col shipTime"></div>
+    </div>
+</div>
+</body>
+</html>
