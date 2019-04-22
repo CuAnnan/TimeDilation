@@ -12,38 +12,45 @@
 
 </head>
 <body>
-<div class="container">
+<div class="container-fluid">
     <div class="row">
-        <button class="btn btn-primary" id="gameStateToggleBtn">Start</button>
-        <div class="btn-group btn-group-toggle" data-toggle="buttons">
-            <label class="btn btn-secondary active">
-                <input type="radio" name="gameSpeed" id="gameSpeed1" value="1" autocomplete="off" checked> &times;1
-            </label>
-            <label class="btn btn-secondary">
-                <input type="radio" name="gameSpeed" id="gameSpeed2" value="2" autocomplete="off"> &times;2
-            </label>
-            <label class="btn btn-secondary">
-                <input type="radio" name="gameSpeed" id="gameSpeed3" value="4" autocomplete="off"> &times;4
-            </label>
-            <label class="btn btn-secondary">
-                <input type="radio" name="gameSpeed" id="gameSpeed3" value="8" autocomplete="off"> &times;8
-            </label>
-            <label class="btn btn-secondary">
-                <input type="radio" name="gameSpeed" id="gameSpeed4" value="16" autocomplete="off"> &times;16
-            </label>
-            <label class="btn btn-secondary">
-                <input type="radio" name="gameSpeed" id="gameSpeed6" value="64" autocomplete="off"> &times;64
-            </label>
+        <div class="col-2">
+            <div class="row">
+                <div class="col-4">Time:</div>
+                <div class="col" id="globalTimer"></div>
+            </div>
+            <div class="row">
+                <div class="col-4">Funding</div>
+                <div class="col" id="gameFunding"></div>
+            </div>
+        </div>
+        <div class="col text-center">
+            Time compression:
+            <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                <label class="btn btn-secondary active">
+                    <input type="radio" name="gameSpeed" id="gameSpeed1" value="1" autocomplete="off" checked> &times;1
+                </label>
+                <label class="btn btn-secondary">
+                    <input type="radio" name="gameSpeed" id="gameSpeed2" value="2" autocomplete="off"> &times;2
+                </label>
+                <label class="btn btn-secondary">
+                    <input type="radio" name="gameSpeed" id="gameSpeed3" value="4" autocomplete="off"> &times;4
+                </label>
+                <label class="btn btn-secondary">
+                    <input type="radio" name="gameSpeed" id="gameSpeed4" value="8" autocomplete="off"> &times;8
+                </label>
+                <label class="btn btn-secondary">
+                    <input type="radio" name="gameSpeed" id="gameSpeed5" value="16" autocomplete="off"> &times;16
+                </label>
+                <label class="btn btn-secondary">
+                    <input type="radio" name="gameSpeed" id="gameSpeed6" value="64" autocomplete="off"> &times;64
+                </label>
 
+            </div>
         </div>
     </div>
     <div class="row">
-        <div class="col-1">
-
-            <div class="col">
-                <div class="row">Time:</div>
-                <div class="row" id="globalTimer"></div>
-            </div>
+        <div class="col-2">
 
         </div>
         <div class="col">
@@ -51,36 +58,6 @@
         </div>
     </div>
 </div>
-<div class="col-4 ship" style="display:none" id="shipColumnMaster">
-    <div class="row">
-        <div class="col">Ship name:</div>
-        <div class="col shipName"></div>
-    </div>
-    <div class="row">
-        <div class="col-6">Mass</div>
-        <div class="col shipMass"></div>
-        <div class="col-1">kg</div>
-    </div>
-    <div class="row">
-        <div class="col-6">Fuel</div>
-        <div class="col shipFuel"></div>
-        <div class="col-1">kg</div>
-    </div>
-    <div class="row">
-        <div class="col-6">Acceleration</div>
-        <div class="col shipAcceleration"></div>
-        <div class="col-1">m/s<sup>2</sup></div>
-    </div>
-    <div class="row">
-        <div class="col-6">Velocity</div>
-        <div class="col shipVelocity"></div>
-        <div class="col-1">m/s</div>
-    </div>
-    <div class="row">
-        <div class="col-6">Distance</div>
-        <div class="col shipDistance"></div>
-        <div class="col-1">m</div>
-    </div>
-</div>
+
 </body>
 </html>

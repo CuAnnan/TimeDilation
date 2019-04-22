@@ -8,14 +8,43 @@ let lastTimestamp = 0,
     playing = false,
     $ships = $('#ships');
 
-Game.addNewProbe();
-
 function createShipElement(index, ship)
 {
-    let $elem = $('#shipColumnMaster').clone().removeAttr('style').removeAttr('id');
-    $('.shipName', $elem).text(ship.name);
-    $('.shipMass', $elem).text(ship.mass);
-    $('.shipThrust', $elem).text(ship.thrust);
+    let $elem = $(`<div class="col-4 ship">
+    <div class="row">
+        <div class="col">Ship name:</div>
+        <div class="col shipName">${ship.name}</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Mass</div>
+        <div class="col shipMass">${ship.mass}</div>
+        <div class="col-1">kg</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Fuel</div>
+        <div class="col shipFuel"></div>
+        <div class="col-1">kg</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Acceleration</div>
+        <div class="col shipAcceleration"></div>
+        <div class="col-1">m/s<sup>2</sup></div>
+    </div>
+    <div class="row">
+        <div class="col">Engine Groups:</div>
+        <div class="col engineGroupCount">${ship.engineGroups.length}</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Velocity</div>
+        <div class="col shipVelocity"></div>
+        <div class="col-1">m/s</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Distance</div>
+        <div class="col shipDistance"></div>
+        <div class="col-1">m</div>
+    </div>
+</div>`);
     return $elem;
 }
 
@@ -36,6 +65,7 @@ function updateShipElement(ship)
     $('.shipDistance', $elem).text(formatNumber(ship.distance));
     $('.shipVelocity', $elem).text(formatNumber(ship.velocity));
     $('.shipFuel', $elem).text(formatNumber(ship.fuelRemaining));
+    $('.engineGroupCount', $elem).text(ship.engineGroups.length);
     $('.shipAcceleration', $elem).text(formatNumber(ship.acceleration));
 }
 
@@ -51,6 +81,7 @@ function draw()
         updateShipElement(ship);
     }
     $('#globalTimer').text(Game.time.toFixed(1));
+    $('#gameFunding').text(Game.funding.toFixed(2));
 }
 
 
@@ -61,33 +92,23 @@ function gameLoop(timestamp)
         requestAnimationFrame(gameLoop);
         return;
     }
-    delta = timestamp - lastTimestamp;
-    lastTimestamp = timestamp;
 
     draw();
-    if (playing)
-    {
-        requestAnimationFrame(gameLoop);
-    }
+    requestAnimationFrame(gameLoop);
 }
 
-$('#gameStateToggleBtn').click(function(){
-    Game.toggle();
-    playing = !playing;
-    $(this).text(playing?'Stop':'Start');
-    if(playing)
-    {
-        lastTimestamp = 0;
-        requestAnimationFrame(gameLoop);
-    }
-});
+
 
 let $radio = $('input[name=gameSpeed]').change(function(){
     let compression = ($(this).val());
     Game.compression = compression;
 });
 
+console.log('Should be starting the game');
+Game.addNewProbe();
 
+Game.start();
 draw();
+requestAnimationFrame(gameLoop);
 
 });})(jQuery);

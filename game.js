@@ -9,14 +9,43 @@ let lastTimestamp = 0,
     playing = false,
     $ships = $('#ships');
 
-Game.addNewProbe();
-
 function createShipElement(index, ship)
 {
-    let $elem = $('#shipColumnMaster').clone().removeAttr('style').removeAttr('id');
-    $('.shipName', $elem).text(ship.name);
-    $('.shipMass', $elem).text(ship.mass);
-    $('.shipThrust', $elem).text(ship.thrust);
+    let $elem = $(`<div class="col-4 ship">
+    <div class="row">
+        <div class="col">Ship name:</div>
+        <div class="col shipName">${ship.name}</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Mass</div>
+        <div class="col shipMass">${ship.mass}</div>
+        <div class="col-1">kg</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Fuel</div>
+        <div class="col shipFuel"></div>
+        <div class="col-1">kg</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Acceleration</div>
+        <div class="col shipAcceleration"></div>
+        <div class="col-1">m/s<sup>2</sup></div>
+    </div>
+    <div class="row">
+        <div class="col">Engine Groups:</div>
+        <div class="col engineGroupCount">${ship.engineGroups.length}</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Velocity</div>
+        <div class="col shipVelocity"></div>
+        <div class="col-1">m/s</div>
+    </div>
+    <div class="row">
+        <div class="col-6">Distance</div>
+        <div class="col shipDistance"></div>
+        <div class="col-1">m</div>
+    </div>
+</div>`);
     return $elem;
 }
 
@@ -37,6 +66,7 @@ function updateShipElement(ship)
     $('.shipDistance', $elem).text(formatNumber(ship.distance));
     $('.shipVelocity', $elem).text(formatNumber(ship.velocity));
     $('.shipFuel', $elem).text(formatNumber(ship.fuelRemaining));
+    $('.engineGroupCount', $elem).text(ship.engineGroups.length);
     $('.shipAcceleration', $elem).text(formatNumber(ship.acceleration));
 }
 
@@ -52,6 +82,7 @@ function draw()
         updateShipElement(ship);
     }
     $('#globalTimer').text(Game.time.toFixed(1));
+    $('#gameFunding').text(Game.funding.toFixed(2));
 }
 
 
@@ -62,37 +93,27 @@ function gameLoop(timestamp)
         requestAnimationFrame(gameLoop);
         return;
     }
-    delta = timestamp - lastTimestamp;
-    lastTimestamp = timestamp;
 
     draw();
-    if (playing)
-    {
-        requestAnimationFrame(gameLoop);
-    }
+    requestAnimationFrame(gameLoop);
 }
 
-$('#gameStateToggleBtn').click(function(){
-    Game.toggle();
-    playing = !playing;
-    $(this).text(playing?'Stop':'Start');
-    if(playing)
-    {
-        lastTimestamp = 0;
-        requestAnimationFrame(gameLoop);
-    }
-});
+
 
 let $radio = $('input[name=gameSpeed]').change(function(){
     let compression = ($(this).val());
     Game.compression = compression;
 });
 
+console.log('Should be starting the game');
+Game.addNewProbe();
 
+Game.start();
 draw();
+requestAnimationFrame(gameLoop);
 
 });})(jQuery);
-},{"./lib/Game":5}],2:[function(require,module,exports){
+},{"./lib/Game":6}],2:[function(require,module,exports){
 const   Big         = require('big-js'),
         ShipPart    = require('./ShipPart');
 
@@ -109,10 +130,15 @@ class Chassi extends ShipPart
 }
 
 module.exports = Chassi;
-},{"./ShipPart":8,"big-js":10}],3:[function(require,module,exports){
+},{"./ShipPart":10,"big-js":13}],3:[function(require,module,exports){
 const   Big         = require('big-js'),
-        ShipPart    = require('./ShipPart');
+        ShipPart    = require('./ShipPart'),
+        Thruster    = require('./Thruster'),
+        FuelTank    = require('./FuelTank');
 
+/**
+ * An Engine is a group of thrusters and a group of fuel tanks
+ */
 class Engine extends ShipPart
 {
     constructor(data)
@@ -122,20 +148,211 @@ class Engine extends ShipPart
         {
             this.name = 'Engine';
         }
-        this.fuelPerSecond = new Big(data.fuelPerSecond?data.fuelPerSecond:1);
-        this.thrust = new Big(data.thrust?data.thrust:1);
+        this.thrusters = [];
+        this.fuelTanks = [];
+        /*
+        Storing this reduces the need to calculate the thruster masses every time we want to calculate the mass of the engine
+         */
+        this.thrusterMass = new Big(0);
+        this.fuelPerSecond = new Big(0);
+        this.thrust = new Big(0);
     }
+
+    /**
+     * Add a thruster
+     * @param {Thruster} thruster
+     */
+    addThruster(thruster)
+    {
+        this.thrusters.push(thruster);
+        this.fuelPerSecond = this.fuelPerSecond.plus(thruster.fuelPerSecond);
+        this.thrusterMass = this.thrusterMass.plus(thruster.mass);
+        this.thrust = this.thrust.plus(thruster.thrust);
+    }
+
+    /**
+     * Add an engine
+     * @param {Engine} engine
+     */
+    addFuelTank(engine)
+    {
+        this.fuelTanks.push(engine);
+    }
+
+    get fuelRemaining()
+    {
+        let fuelRemaining = 0;
+        for(let tank of this.fuelTanks)
+        {
+            fuelRemaining = tank.fuelRemaining.plus(fuelRemaining);
+        }
+        return fuelRemaining;
+    }
+
+    get mass()
+    {
+        let mass = this.thrusterMass;
+        for(let fuelTank of this.fuelTanks)
+        {
+            mass = mass.plus(fuelTank.mass);
+        }
+        return mass;
+    }
+
+    /**
+     * This method tries to burn the thursters  in the engine for a number of seconds
+     * @param {Number} maxSeconds A big that is greater than zero. Could be  half a second, could be a second
+     */
+    burn(maxSeconds)
+    {
+        // set the burn time to the requested burn time
+        let time = maxSeconds,
+            // determine how much fuel that will take
+            fuelRequired = this.fuelPerSecond.times(maxSeconds),
+            // how much fuel this burn actually has
+            fuelSourced = new Big(0),
+            // a ticker to search through the tanks
+            tanksSearched = 0,
+            thrust = this.thrust;
+        // search through the tanks, adding fuel from each one until enough fuel is added
+        while(tanksSearched < this.fuelTanks.length && fuelSourced.lt(fuelRequired))
+        {
+            // add an amount from the current tank
+            fuelSourced = fuelSourced.plus(this.fuelTanks[tanksSearched].useFuel(fuelRequired.minus(fuelSourced)));
+            // check the next tank if necessary
+            tanksSearched ++;
+        }
+
+        if(!fuelSourced.eq(fuelRequired))
+        {
+            time = fuelSourced.div(fuelRequired).times(time);
+            thrust = thrust.times(time);
+        }
+
+
+        return {thrust: thrust, time:time};
+    }
+
+    static fromJSON(json)
+    {
+        let engine = super.fromJSON(json);
+        for(let fuelTankJSON of json.fuelTanks)
+        {
+            engine.addFuelTank(FuelTank.fromJSON(fuelTankJSON));
+        }
+        for(let thrusterJSON of json.thrusters)
+        {
+            engine.addThruster(Thruster.fromJSON(thrusterJSON));
+        }
+        return engine;
+    }
+
 
     toJSON()
     {
         let json = super.toJSON();
-        json.fuelPerSecond = this.fuelPerSecond.toString();
+        json.thrusters = [];
+        json.fuelTanks = [];
+        for(let engine of this.fuelTanks)
+        {
+            json.fuelTanks.push(engine.toJSON());
+        }
+        for(let thruster of this.thrusters)
+        {
+            json.thrusters.push(thruster.toJSON());
+        }
         return json;
     }
 }
 
 module.exports = Engine;
-},{"./ShipPart":8,"big-js":10}],4:[function(require,module,exports){
+},{"./FuelTank":5,"./ShipPart":10,"./Thruster":11,"big-js":13}],4:[function(require,module,exports){
+const   ShipPart = require('./ShipPart'),
+        Engine = require('./Engine'),
+        Big = require('big-js');
+
+class EngineGroup extends ShipPart
+{
+    constructor(json)
+    {
+        super(json);
+        this.engines = [];
+    }
+
+    toJSON()
+    {
+        let json = super.toJSON();
+        json.engines = [];
+        for(let engine of this.engines)
+        {
+            json.engines.push(engine.toJSON());
+        }
+        return json;
+    }
+
+    get mass()
+    {
+        let mass = 0;
+        for(let engine of this.engines)
+        {
+            mass = engine.mass.plus(0);
+        }
+        return mass;
+    }
+
+    get fuelRemaining()
+    {
+        let fuelRemaining = 0;
+        for(let engine of this.engines)
+        {
+            fuelRemaining = engine.fuelRemaining.plus(fuelRemaining);
+        }
+        return fuelRemaining;
+    }
+
+    get thrust()
+    {
+        let thrust = 0;
+        for(let engine of this.engines)
+        {
+            thrust = engine.thrust.plus(thrust);
+        }
+        return thrust;
+    }
+
+    burn(maxSeconds)
+    {
+        let totalBurn = {thrust:new Big(0), time:0};
+        if(this.fuelRemaining.gt(0))
+        {
+            for(let engine of this.engines)
+            {
+                let engineBurn = engine.burn(maxSeconds);
+                totalBurn.thrust = engineBurn.thrust.plus(totalBurn.thrust);
+                totalBurn.time = Math.max(totalBurn.time, engineBurn.time);
+            }
+        }
+        if(this.fuelRemaining.eq(0))
+        {
+            this.trigger('fuelBurnedOut');
+        }
+        return totalBurn;
+    }
+
+    static fromJSON(json)
+    {
+        let engineGroup = super.fromJSON(json);
+        for(let engineJSON of json.engines)
+        {
+            engineGroup.engines.push(Engine.fromJSON(engineJSON));
+        }
+
+        return engineGroup;
+    }
+}
+
+module.exports = EngineGroup;
+},{"./Engine":3,"./ShipPart":10,"big-js":13}],5:[function(require,module,exports){
 const   Big         = require('big-js'),
         ShipPart    = require('./ShipPart');
 
@@ -206,8 +423,9 @@ class FuelTank extends ShipPart
 }
 
 module.exports = FuelTank;
-},{"./ShipPart":8,"big-js":10}],5:[function(require,module,exports){
-const ShipFactory = require('./ShipFactory');
+},{"./ShipPart":10,"big-js":13}],6:[function(require,module,exports){
+const   ShipFactory = require('./ShipFactory'),
+        Big = require('big-js');
 
 class Game
 {
@@ -226,7 +444,6 @@ class Game
 
     static tick()
     {
-
         for(let i = 0; i < this.compression; i++)
         {
             this.simulate(this.tickLength);
@@ -286,6 +503,7 @@ class Game
         return 1/this.ticksPerSecond;
     }
 
+
 };
 Game.ships = [];
 Game.ticking = false;
@@ -293,20 +511,48 @@ Game.ticksPerSecond = 100;
 Game.compression = 1;
 Game.time = 0;
 Game.ticks = 0;
+Game.funding = new Big(10000);
 
 module.exports = Game;
-},{"./ShipFactory":7}],6:[function(require,module,exports){
+},{"./ShipFactory":9,"big-js":13}],7:[function(require,module,exports){
+class Listenable
+{
+    constructor()
+    {
+        this.eventHandlers = {};
+    }
+
+    on(event, handler)
+    {
+        this.eventHandlers[event] = this.eventHandlers[event]?this.eventHandlers[event]:[];
+        this.eventHandlers[event].push(handler);
+    }
+
+    trigger(event)
+    {
+        if(this.eventHandlers[event])
+        {
+            for (let handler of this.eventHandlers[event])
+            {
+                handler(this);
+            }
+        }
+    }
+}
+
+module.exports = Listenable;
+},{}],8:[function(require,module,exports){
 const   Big = require('big-js'),
-        FuelTank = require('./FuelTank'),
         Chassi = require('./Chassi'),
-        Engine = require('./Engine'),
-        UniversalConstants = require('./UniversalConstants');
+        EngineGroup = require('./EngineGroup'),
+        UniversalConstants = require('./UniversalConstants'),
+        Listenable = require('./Listenable');
 
-
-class Ship
+class Ship extends Listenable
 {
     constructor(data)
     {
+        super();
         /**
          * The name of the ship
          */
@@ -331,37 +577,56 @@ class Ship
         this.acceleration= 0;
 
         this.chassi = null;
-        this.fuelTank = null;
-        this.engine = null;
+        this.engineGroups = [];
+        this.hasFuel = false;
+
         /**
          * The ships lorentz shift
          */
     }
 
-    /**
-     * A method to load a ship from JSON
-     * @param json
-     * @returns {Ship}
-     */
-    static fromJSON(json)
+    addEngineGroup(engineGroup)
     {
-        let ship = new Ship(json);
-        ship.chassi = Chassi.fromJSON(json.chassi);
-        ship.fuelTank = FuelTank.fromJSON(json.fuelTank);
-        ship.engine = Engine.fromJSON(json.engine);
-        return ship;
+        if(engineGroup.fuelRemaining)
+        {
+            this.hasFuel = true;
+            this.engineGroups.push(engineGroup);
+            engineGroup.on('fuelBurnedOut', (engineGroup)=>{this.ditchEngineGroup(engineGroup)});
+            if(!this.currentEngineGroup)
+            {
+                this.currentEngineGroup = engineGroup;
+            }
+        }
     }
+
+    ditchEngineGroup(engineGroup)
+    {
+        console.log(this.engineGroups.length);
+        console.log('Ditching an engine');
+        this.engineGroups.shift();
+        if(this.engineGroups.length == 0)
+        {
+            console.log('All fuel used');
+            this.trigger('All Fuel Consumed');
+        }
+    }
+
 
     get mass()
     {
-        return this.chassi.mass.plus(this.fuelTank.mass).plus(this.engine.mass);
+        let mass = this.chassi.mass;
+        for(let group of this.engineGroups)
+        {
+            mass = mass.plus(group.mass);
+        }
+        return mass;
     }
 
     simulate(seconds)
     {
         this.acceleration = 0;
 
-        if(!this.fuelTank.empty)
+        if(this.engineGroups.length > 0)
         {
             let vSquared    = this.velocity.pow(2),
                 r           = vSquared.div(UniversalConstants.C_SQUARED),
@@ -372,22 +637,22 @@ class Ship
             // let's try to use as much fuel as we can per second
             // the fuel tank may not have as much, so we'll ask it for the engine's fuel per seconds
             // but only burn as much as we have
-            let fullBurnFuel = this.engine.fuelPerSecond.times(seconds);
-            let fuelUsed = this.fuelTank.useFuel(fullBurnFuel);
-            let thrust = this.engine.thrust;
-            // if we have now spent all of the fuel, we may have stalled mid burn so figure out what percentage of the simulation length we produced thrust for
-            if(this.fuelTank.empty && !fuelUsed.eq(fullBurnFuel))
+
+            let burnDetails = this.engineGroups[0].burn(seconds);
+
+            /*
+            let fullBurnFuel = this.engines.fuelPerSecond.times(seconds);
+            let fuelUsed = this.fuelTanks.useFuel(fullBurnFuel);
+            let thrust = this.engines.burn(fuelUsed, seconds);
+            */
+            if(burnDetails.thrust.gt(0))
             {
-                let ratio = fuelUsed.div(fullBurnFuel);
-                // reduce the thrust amount accordingly
-                thrust = thrust.times(ratio);
+                let acceleration = burnDetails.thrust.div(gamma.pow(3).times(this.mass));
+                let deltaV = acceleration.times(seconds);
+                this.velocity = this.velocity.plus(deltaV);
+
+                this.acceleration = acceleration;
             }
-
-            let acceleration = thrust.div(gamma.pow(3).times(this.mass));
-            let deltaV = acceleration.times(seconds);
-            this.velocity = this.velocity.plus(deltaV);
-
-            this.acceleration = acceleration;
         }
         let gammaSeconds = this.gamma.times(seconds);
         this.distance = this.distance.plus(gammaSeconds.times(this.velocity));
@@ -397,18 +662,23 @@ class Ship
 
     get thrust()
     {
-        return this.engine.thrust;
+        return this.currentEngineGroup.thrust;
     }
 
     get fuelRemaining()
     {
-        return this.fuelTank.fuelRemaining;
+        let remainingFuel = 0;
+        for(let group of this.engineGroups)
+        {
+            remainingFuel = group.fuelRemaining.plus(remainingFuel);
+        }
+        return remainingFuel;
     }
 
 
     toJSON()
     {
-        return {
+        let json = {
             name:this.name,
             velocity:this.velocity.toString(),
             distance:this.distance.toString(),
@@ -416,20 +686,36 @@ class Ship
             mass:this.mass.toString(),
             gamme:this.gamma.toString(),
             chassi:this.chassi.toJSON(),
-            fuelTank:this.fuelTank.toJSON(),
-            engine:this.engine.toJSON(),
+            engineGroups:[],
         };
+        for(let engineGroup of this.engineGroups)
+        {
+            json.engineGroups.push(engineGroup.toJSON());
+        }
+        return json;
     }
 
 
-    tick(seconds)
+    /**
+     * A method to load a ship from JSON
+     * @param json
+     * @returns {Ship}
+     */
+    static fromJSON(json)
     {
+        let ship = new Ship(json);
 
+        ship.chassi = Chassi.fromJSON(json.chassi);
+        for(let engineGroupJSON of json.engineGroups)
+        {
+            ship.addEngineGroup(EngineGroup.fromJSON(engineGroupJSON));
+        }
+        return ship;
     }
 }
 
 module.exports = Ship;
-},{"./Chassi":2,"./Engine":3,"./FuelTank":4,"./UniversalConstants":9,"big-js":10}],7:[function(require,module,exports){
+},{"./Chassi":2,"./EngineGroup":4,"./Listenable":7,"./UniversalConstants":12,"big-js":13}],9:[function(require,module,exports){
 const   ShipPart    = require('./ShipPart'),
         FuelTank    = require('./FuelTank'),
         Engine      = require('./Engine'),
@@ -447,16 +733,24 @@ class ShipFactory
             chassi:{
                 partMass:1
             },
-            engine:{
-                thrust:100,
-                fuelPerSecond:0.051,
-                partMass:1
-            },
-            fuelTank:{
-                density:1,
-                volume:1,
-                partMass:1
-            }
+            engineGroups:[
+                {
+                    engines:[{
+                        thrusters: [
+                            {thrust: 10, fuelPerSecond: 0.05, partMass: 1}
+                        ],
+                        fuelTanks: [{density: 1, volume: 1, partMass: 1}]
+                    }]
+                },
+                {
+                    engines:[{
+                        thrusters: [
+                            {thrust: 10, fuelPerSecond: 0.05, partMass: 1}
+                        ],
+                        fuelTanks: [{density: 1, volume: 1, partMass: 1}]
+                    }]
+                }
+            ]
         });
     }
 
@@ -467,14 +761,16 @@ class ShipFactory
 }
 
 module.exports = ShipFactory;
-},{"./Engine":3,"./FuelTank":4,"./Ship":6,"./ShipPart":8}],8:[function(require,module,exports){
-const   Big = require('big-js')
+},{"./Engine":3,"./FuelTank":5,"./Ship":8,"./ShipPart":10}],10:[function(require,module,exports){
+const   Big = require('big-js'),
+        Listenable = require('./Listenable');
 
 
-class ShipPart
+class ShipPart extends Listenable
 {
     constructor(data)
     {
+        super();
         /**
          * The name of the ship part
          */
@@ -484,6 +780,7 @@ class ShipPart
          * @type {Big}
          */
         this.partMass = new Big(data.partMass?data.partMass:1000);
+        this.cost = new Big(data.cost?data.cost:100);
     }
 
     /**
@@ -498,7 +795,8 @@ class ShipPart
     {
         return {
             name:this.name,
-            partMass:this.partMass.toString()
+            partMass:this.partMass.toString(),
+            cost:this.cost
         };
     }
 
@@ -506,11 +804,37 @@ class ShipPart
     {
         return new this(json);
     }
-
 }
 
 module.exports = ShipPart;
-},{"big-js":10}],9:[function(require,module,exports){
+},{"./Listenable":7,"big-js":13}],11:[function(require,module,exports){
+const   Big         = require('big-js'),
+    ShipPart    = require('./ShipPart');
+
+class Thruster extends ShipPart
+{
+    constructor(data)
+    {
+        super(data);
+        if(!this.name)
+        {
+            this.name = 'Thruster';
+        }
+        this.fuelPerSecond = new Big(data.fuelPerSecond?data.fuelPerSecond:1);
+        this.thrust = new Big(data.thrust?data.thrust:1);
+    }
+
+    toJSON()
+    {
+        let json = super.toJSON();
+        json.fuelPerSecond = this.fuelPerSecond.toString();
+        json.thrust = this.thrust.toString();
+        return json;
+    }
+}
+
+module.exports = Thruster;
+},{"./ShipPart":10,"big-js":13}],12:[function(require,module,exports){
 const   Big = require('big-js'),
         C = new Big(299792458),
         C_SQUARED = C.pow(2),
@@ -519,7 +843,7 @@ module.exports = {
     C:C,
     C_SQUARED:C_SQUARED
 };
-},{"big-js":10}],10:[function(require,module,exports){
+},{"big-js":13}],13:[function(require,module,exports){
 /* big.js v3.1.3 https://github.com/MikeMcl/big.js/LICENCE */
 ;(function (global) {
     'use strict';

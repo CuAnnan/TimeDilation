@@ -2,6 +2,7 @@ const Game = require('./lib/Game');
 
 Game.addNewProbe();
 
+
 Game.start();
 
 setTimeout(
@@ -12,5 +13,5 @@ setTimeout(
             }
         );
     },
-    3000
+    30000
 );
