@@ -1,5 +1,6 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-const Game = require('./lib/Game');
+const   Game = require('./lib/Game'),
+        ShipFactory = require('./lib/ShipFactory');
 
 (function($){$(function() {
 
@@ -11,7 +12,7 @@ let lastTimestamp = 0,
 
 function createShipElement(index, ship)
 {
-    let $elem = $(`<div class="col-4 ship">
+    let $elem = $(`<div class="col-3 ship">
     <div class="row">
         <div class="col">Ship name:</div>
         <div class="col shipName">${ship.name}</div>
@@ -85,6 +86,51 @@ function draw()
     $('#gameFunding').text(Game.funding.toFixed(2));
 }
 
+function unCamelCase(string)
+{
+    // found this here: https://stackoverflow.com/questions/4149276/javascript-camelcase-to-regular-form
+    return string.replace(/([A-Z])/g, ' $1').replace(/^./, function(str){ return str.toUpperCase(); })
+}
+
+function makeBasicPartRow(key, part)
+{
+    let properName = unCamelCase(key);
+    return $(`<div class="row"><div class="col-4">${properName}</div><div class="col">${part[key]}</div></div>`);
+
+}
+
+function makeBasicPartElement(part)
+{
+    let $containingCol = $('<div class="col-4"/>');
+    let universalFields = ['name', 'baseMass', 'cost'];
+    for(let key of universalFields)
+    {
+        makeBasicPartRow(key, part).appendTo($containingCol);
+    }
+    for(let key in part)
+    {
+        if(universalFields.indexOf(key) < 0)
+        {
+            makeBasicPartRow(key, part).appendTo($containingCol);
+        }
+    }
+    return $containingCol;
+}
+
+function initialiseBuildParts()
+{
+    let buildParts = ShipFactory.parts;
+    for(let partType in buildParts)
+    {
+        let id = `#${partType}PartsDesignScreen`,
+            $container = $('.card-body', id);
+        for(let part of buildParts[partType])
+        {
+            let $node = makeBasicPartElement(part).appendTo($container);
+        }
+    }
+}
+
 
 function gameLoop(timestamp)
 {
@@ -98,24 +144,35 @@ function gameLoop(timestamp)
     requestAnimationFrame(gameLoop);
 }
 
+function showMissionModal()
+{
+    let parts = ShipFactory.parts;
+    $chassiSelect = $('#newMissionChassiSelect');
+    for(let chassi of parts.chassi)
+    {
+        $chassiSelect.append($(`<option>${chassi.name}</option>`));
+    }
+    $('#newMissionModal').modal('show');
+}
 
 
-let $radio = $('input[name=gameSpeed]').change(function(){
+
+$('input[name=gameSpeed]').change(function(){
     let compression = ($(this).val());
     Game.compression = compression;
 });
 
-console.log('Should be starting the game');
-Game.addNewProbe();
+$('#launchMissionButton').click(showMissionModal);
+
+initialiseBuildParts();
 
 Game.start();
 draw();
 requestAnimationFrame(gameLoop);
 
 });})(jQuery);
-},{"./lib/Game":6}],2:[function(require,module,exports){
-const   Big         = require('big-js'),
-        ShipPart    = require('./ShipPart');
+},{"./lib/Game":6,"./lib/ShipFactory":9}],2:[function(require,module,exports){
+const   ShipPart    = require('./ShipPart');
 
 class Chassi extends ShipPart
 {
@@ -126,11 +183,12 @@ class Chassi extends ShipPart
         {
             this.name='Chassi';
         }
+        this.engineGroupSlots = data.engineGroupSlots?data.engineGroupSlots:1;
     }
 }
 
 module.exports = Chassi;
-},{"./ShipPart":10,"big-js":13}],3:[function(require,module,exports){
+},{"./ShipPart":10}],3:[function(require,module,exports){
 const   Big         = require('big-js'),
         ShipPart    = require('./ShipPart'),
         Thruster    = require('./Thruster'),
@@ -409,7 +467,7 @@ class FuelTank extends ShipPart
 
     get mass()
     {
-        return this.partMass.add(this.fuelRemaining);
+        return this.baseMass.add(this.fuelRemaining);
     }
 
     toJSON()
@@ -441,6 +499,7 @@ class Game
             ship.simulate(seconds);
         }
     }
+
 
     static tick()
     {
@@ -587,6 +646,11 @@ class Ship extends Listenable
 
     addEngineGroup(engineGroup)
     {
+        if(this.engineGroups.length == this.chassi.engineGroupSlots)
+        {
+            console.log('Attempted to add extra engine slot beyond cap');
+            return;
+        }
         if(engineGroup.fuelRemaining)
         {
             this.hasFuel = true;
@@ -601,13 +665,10 @@ class Ship extends Listenable
 
     ditchEngineGroup(engineGroup)
     {
-        console.log(this.engineGroups.length);
-        console.log('Ditching an engine');
         this.engineGroups.shift();
         if(this.engineGroups.length == 0)
         {
-            console.log('All fuel used');
-            this.trigger('All Fuel Consumed');
+            this.trigger('allFuelConsumed');
         }
     }
 
@@ -716,38 +777,65 @@ class Ship extends Listenable
 
 module.exports = Ship;
 },{"./Chassi":2,"./EngineGroup":4,"./Listenable":7,"./UniversalConstants":12,"big-js":13}],9:[function(require,module,exports){
-const   ShipPart    = require('./ShipPart'),
-        FuelTank    = require('./FuelTank'),
-        Engine      = require('./Engine'),
-        Ship        = require('./Ship');
-
-probesMade = 0;
+const   ShipPart            = require('./ShipPart'),
+        FuelTank            = require('./FuelTank'),
+        Engine              = require('./Engine'),
+        Ship                = require('./Ship');
+let probesMade = 0,
+    initialised  = false,
+    parts = {};
 
 class ShipFactory
 {
+    static get BASIC_SHIP_PARTS()
+    {
+        return {
+            CHASSI:{GEN1:{name:'Generation I Probe Core', baseMass:1, engineGroupSlots:2, cost:1000}},
+            THRUSTER:{GEN1:{thrust: 10, fuelPerSecond: 0.05, baseMass: 1, name:'Generation I Thruster', cost:2000}},
+            FUEL_TANK:{GEN1:{density: 1, volume: 1, baseMass: 1, name:'Generation I Fuel Tank', cost:2000}}
+        };
+    }
+
+    static get parts()
+    {
+        if(!initialised)
+        {
+            let basicParts = this.BASIC_SHIP_PARTS;
+            let camelCaseKeys = {
+                CHASSI:'chassi',
+                THRUSTER:'thruster',
+                FUEL_TANK:'fuelTank'
+            };
+            for(let i in basicParts)
+            {
+                for(let j in basicParts[i])
+                {
+                    parts[camelCaseKeys[i]] = [this.BASIC_SHIP_PARTS[i][j]];
+                }
+            }
+            initialised = true;
+        }
+        console.log(parts);
+        return parts;
+    }
+
     static getNewProbe()
     {
         probesMade++;
         return Ship.fromJSON({
             name:`Probe ${probesMade}`,
-            chassi:{
-                partMass:1
-            },
+            chassi:this.BASIC_SHIP_PARTS.CHASSI.GEN1,
             engineGroups:[
                 {
                     engines:[{
-                        thrusters: [
-                            {thrust: 10, fuelPerSecond: 0.05, partMass: 1}
-                        ],
-                        fuelTanks: [{density: 1, volume: 1, partMass: 1}]
+                        thrusters: [this.BASIC_SHIP_PARTS.THRUSTER.GEN1],
+                        fuelTanks: [this.BASIC_SHIP_PARTS.FUEL_TANK.GEN1]
                     }]
                 },
                 {
                     engines:[{
-                        thrusters: [
-                            {thrust: 10, fuelPerSecond: 0.05, partMass: 1}
-                        ],
-                        fuelTanks: [{density: 1, volume: 1, partMass: 1}]
+                        thrusters: [this.BASIC_SHIP_PARTS.THRUSTER.GEN1],
+                        fuelTanks: [this.BASIC_SHIP_PARTS.FUEL_TANK.GEN1]
                     }]
                 }
             ]
@@ -779,7 +867,7 @@ class ShipPart extends Listenable
          * The base weight of the part in kg
          * @type {Big}
          */
-        this.partMass = new Big(data.partMass?data.partMass:1000);
+        this.baseMass = new Big(data.baseMass?data.baseMass:1000);
         this.cost = new Big(data.cost?data.cost:100);
     }
 
@@ -788,14 +876,14 @@ class ShipPart extends Listenable
      */
     get mass()
     {
-        return this.partMass;
+        return this.baseMass;
     }
 
     toJSON()
     {
         return {
             name:this.name,
-            partMass:this.partMass.toString(),
+            baseMass:this.baseMass.toString(),
             cost:this.cost
         };
     }

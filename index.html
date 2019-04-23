@@ -51,10 +51,95 @@
     </div>
     <div class="row">
         <div class="col-2">
-
+            <nav>
+                <ul class="nav nav-pills flex-column" role="tablist" id="game-tab">
+                    <li class="nav-item">
+                        <a href="#active-ships" aria-controls="active-ships" id="active-ships-tab" class="nav-link active" data-toggle="pill" role="tab" aria-selected="false">Active Missions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#part-design" aria-controls="part-design" id="part-design-tab" class="nav-link" data-toggle="pill" role="tab" aria-selected="false">Part design</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
         <div class="col">
-            <div class="row" id="ships"></div>
+            <div class="tab-content" id="game-tabContent">
+                <div id="active-ships" class="tab-pane fade show active" role="tabpanel" aria-labelledby="pills-profile-tab">
+                    <div class="row">
+                        <h2>Active Ships</h2>
+                    </div>
+                    <div class="row">
+                        <button class="btn btn-primary" id="launchMissionButton">Launch mission</button>
+                    </div>
+                    <div class="row" id="ships"></div>
+                </div>
+                <div id="part-design" class="tab-pane fade" role="tabpanel" aria-labelledby="pills-profile-tab">
+                    <div id="partsCategories">
+                        <div class="card">
+                            <div class="card-header" id="chassiDesignButton">
+                                <h5 class="mb-0">
+                                    <button data-target="#chassiPartsDesignScreen" aria-controls="chassiPartsDesignScreen" class="btn btn-link" data-toggle="collapse" aria-expanded="true">
+                                        Chassis (<span class="chassiPartsCount">1</span>)
+                                    </button>
+                                </h5>
+                            </div>
+                            <div id="chassiPartsDesignScreen" class="collapse" aria-labelledby="chassiDesignButton" data-parent="#part-design">
+                                <div class="card-body"></div>
+                            </div>
+
+                            <div class="card-header" id="thrusterDesignButton">
+                                <h5 class="mb-0">
+                                    <button data-target="#thrusterPartsDesignScreen" aria-controls="thrusterPartsDesignScreen" class="btn btn-link" data-toggle="collapse" aria-expanded="true">
+                                        Thrusters (<span class="thrusterPartsCount">1</span>)
+                                    </button>
+                                </h5>
+                            </div>
+                            <div id="thrusterPartsDesignScreen" class="collapse" aria-labelledby="thrusterDesignButton" data-parent="#part-design">
+                                <div class="card-body"></div>
+                            </div>
+
+                            <div class="card-header" id="fuelTankDesignButton">
+                                <h5 class="mb-0">
+                                    <button data-target="#fuelTankPartsDesignScreen" aria-controls="fuelTankPartsDesignScreen" class="btn btn-link" data-toggle="collapse" aria-expanded="true">
+                                        Fuel Tanks (<span class="fuelTankPartsCount">1</span>)
+                                    </button>
+                                </h5>
+                            </div>
+                            <div id="fuelTankPartsDesignScreen" class="collapse" aria-labelledby="fuelTankDesignButton" data-parent="#part-design">
+                                <div class="card-body"></div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" tabindex="-1" role="dialog" id="newMissionModal">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Mission</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-2">
+                        Chassi:
+                    </div>
+                    <div class="col">
+                        <select id="newMissionChassiSelect"></select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" disabled>Launch Ship</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>

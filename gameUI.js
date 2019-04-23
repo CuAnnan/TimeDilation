@@ -1,16 +1,15 @@
-const Game = require('./lib/Game');
+const   Game = require('./lib/Game'),
+        ShipFactory = require('./lib/ShipFactory');
 
 (function($){$(function() {
 
 let lastTimestamp = 0,
     maxFPS = 60,
-    delta = 0,
-    playing = false,
     $ships = $('#ships');
 
 function createShipElement(index, ship)
 {
-    let $elem = $(`<div class="col-4 ship">
+    return $(`<div class="col-3 ship">
     <div class="row">
         <div class="col">Ship name:</div>
         <div class="col shipName">${ship.name}</div>
@@ -45,7 +44,6 @@ function createShipElement(index, ship)
         <div class="col-1">m</div>
     </div>
 </div>`);
-    return $elem;
 }
 
 function formatNumber(number, digits = 7)
@@ -84,6 +82,51 @@ function draw()
     $('#gameFunding').text(Game.funding.toFixed(2));
 }
 
+function unCamelCase(string)
+{
+    // found this here: https://stackoverflow.com/questions/4149276/javascript-camelcase-to-regular-form
+    return string.replace(/([A-Z])/g, ' $1').replace(/^./, function(str){ return str.toUpperCase(); })
+}
+
+function makeBasicPartRow(key, part)
+{
+    let properName = unCamelCase(key);
+    return $(`<div class="row"><div class="col-4">${properName}</div><div class="col">${part[key]}</div></div>`);
+
+}
+
+function makeBasicPartElement(part)
+{
+    let $containingCol = $('<div class="col-4"/>');
+    let universalFields = ['name', 'baseMass', 'cost'];
+    for(let key of universalFields)
+    {
+        makeBasicPartRow(key, part).appendTo($containingCol);
+    }
+    for(let key in part)
+    {
+        if(universalFields.indexOf(key) < 0)
+        {
+            makeBasicPartRow(key, part).appendTo($containingCol);
+        }
+    }
+    return $containingCol;
+}
+
+function initialiseBuildParts()
+{
+    let buildParts = ShipFactory.parts;
+    for(let partType in buildParts)
+    {
+        let id = `#${partType}PartsDesignScreen`,
+            $container = $('.card-body', id);
+        for(let part of buildParts[partType])
+        {
+            makeBasicPartElement(part).appendTo($container);
+        }
+    }
+}
+
 
 function gameLoop(timestamp)
 {
@@ -97,15 +140,26 @@ function gameLoop(timestamp)
     requestAnimationFrame(gameLoop);
 }
 
+function showMissionModal()
+{
+    let parts = ShipFactory.parts;
+    $chassiSelect = $('#newMissionChassiSelect');
+    for(let chassi of parts.chassi)
+    {
+        $chassiSelect.append($(`<option>${chassi.name}</option>`));
+    }
+    $('#newMissionModal').modal('show');
+}
 
 
-let $radio = $('input[name=gameSpeed]').change(function(){
-    let compression = ($(this).val());
-    Game.compression = compression;
+
+$('input[name=gameSpeed]').change(function(){
+    Game.compression = ($(this).val());
 });
 
-console.log('Should be starting the game');
-Game.addNewProbe();
+$('#launchMissionButton').click(showMissionModal);
+
+initialiseBuildParts();
 
 Game.start();
 draw();
