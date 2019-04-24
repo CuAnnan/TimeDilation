@@ -6,13 +6,25 @@ const   Game = require('./lib/Game'),
 
 let lastTimestamp = 0,
     maxFPS = 60,
-    delta = 0,
-    playing = false,
-    $ships = $('#ships');
+    newShipEngineGroupMax = 0,
+    newShipEngineGroups = [],
+    newShipChassi = null,
+    newShipCost = 0,
+    $ships = $('#ships'),
+    $newShipName = $('#newShipName'),
+    $newShipChassiSelect = $('#newShipChassi'),
+    $newShipFuelTankSelect = $('#newShipFuelTank'),
+    $newShipThrusterSelect = $('#newShipThruster'),
+    $newShipEngineCount = $('#newShipEngineCount'),
+    $newShipFuelTankCount = $('#newShipFuelTankCount'),
+    $newShipThrusterCount = $('#newShipThrusterCount'),
+    $buildShipButton = $('#buildShipButton'),
+    $buildShipEngineGroups = $('#engineGroups'),
+    $addEngineGroupButton = $('#addEngineGroup');
 
 function createShipElement(index, ship)
 {
-    let $elem = $(`<div class="col-3 ship">
+    return $(`<div class="col-3 ship">
     <div class="row">
         <div class="col">Ship name:</div>
         <div class="col shipName">${ship.name}</div>
@@ -47,7 +59,6 @@ function createShipElement(index, ship)
         <div class="col-1">m</div>
     </div>
 </div>`);
-    return $elem;
 }
 
 function formatNumber(number, digits = 7)
@@ -79,6 +90,7 @@ function draw()
         if(!ship.$elem)
         {
             ship.$elem = createShipElement(i, ship).appendTo($ships);
+            $ships.append(ship.$elem);
         }
         updateShipElement(ship);
     }
@@ -117,6 +129,11 @@ function makeBasicPartElement(part)
     return $containingCol;
 }
 
+function makePartOption(part)
+{
+    return $(`<option value="${part.name}">${part.name} (${part.cost})</option>`);
+}
+
 function initialiseBuildParts()
 {
     let buildParts = ShipFactory.parts;
@@ -126,8 +143,23 @@ function initialiseBuildParts()
             $container = $('.card-body', id);
         for(let part of buildParts[partType])
         {
-            let $node = makeBasicPartElement(part).appendTo($container);
+            makeBasicPartElement(part).appendTo($container);
         }
+    }
+
+    for(let chassi of ShipFactory.parts.chassi)
+    {
+        $newShipChassiSelect.append(makePartOption(chassi));
+    }
+
+    for(let fuelTank of ShipFactory.parts.fuelTank)
+    {
+        $newShipFuelTankSelect.append(makePartOption(fuelTank));
+    }
+
+    for(let thruster of ShipFactory.parts.thruster)
+    {
+        $newShipThrusterSelect.append(makePartOption(thruster));
     }
 }
 
@@ -144,27 +176,173 @@ function gameLoop(timestamp)
     requestAnimationFrame(gameLoop);
 }
 
+function disableModal()
+{
+    $newShipEngineCount.attr('disabled', 'disabled');
+    $buildShipButton.attr('disabled', 'disabled');
+}
+
 function showMissionModal()
 {
-    let parts = ShipFactory.parts;
-    $chassiSelect = $('#newMissionChassiSelect');
-    for(let chassi of parts.chassi)
+    let parts = ShipFactory.parts,
+        $modal = $('#newMissionModal');
+    newShipEngineGroupMax = 0;
+    newShipEngineGroups = [];
+    newShipChassi = null;
+    newShipCost = 0;
+
+    $('select', $modal).val('');
+    $('input', $modal).val(function() {
+        let min = $(this).attr('min');
+        return min?min:'';
+    });
+
+    $('#engineGroups').empty();
+
+    disableModal();
+    $addEngineGroupButton.attr('disabled', 'disabled');
+    $buildShipButton.attr('disabled', 'disabled');
+    $buildShipEngineGroups.empty();
+
+    $modal.modal('show');
+}
+
+function checkModalForValidity()
+{
+    let $modal = $('#newMissionModal'),
+        valid = $newShipName.val() && newShipEngineGroups.length;
+
+    $('select', $modal).each(function(){
+        if(!$(this).val())
+        {
+            valid = false;
+        }
+    });
+
+    if(valid)
     {
-        $chassiSelect.append($(`<option>${chassi.name}</option>`));
+        $buildShipButton.removeAttr('disabled');
     }
-    $('#newMissionModal').modal('show');
+}
+
+function checkEngineLayoutForValidity()
+{
+    let valid = newShipEngineGroups.length < newShipEngineGroupMax && $newShipFuelTankSelect.val() && $newShipThrusterSelect.val() && $newShipChassiSelect.val();
+
+    if(valid)
+    {
+        $addEngineGroupButton.removeAttr('disabled');
+        return;
+    }
+    $addEngineGroupButton.attr('disabled', 'disabled');
+}
+
+function updateNewShipModalForChassi()
+{
+    let chassiName = $(this).val()
+    newShipChassi = ShipFactory.getChassiByName(chassiName);
+
+    if(newShipChassi)
+    {
+        $newShipEngineCount.removeAttr('disabled');
+        $newShipEngineCount.attr('max', newShipChassi.engineGroupSlots);
+        newShipEngineGroupMax = newShipChassi.engineGroupSlots;
+        checkModalForValidity();
+        newShipCost += newShipChassi.cost;
+        updateShipCost();
+        return;
+    }
+
+    disableModal();
+}
+
+function updateShipCost()
+{
+    $('#newShipCost').text(newShipCost);
 }
 
 
+function makeEngineGroupRow(engineLayout)
+{
+
+    let $row = $(`<div class="row align-items-center"><div class="col-3">Group ${newShipEngineGroups.length} of ${newShipEngineGroupMax}</div></div>`),
+        $engineCol = $('<div class="col"></div>').appendTo($row),
+        $engineCountCol = $(`<div class="col-2">x ${engineLayout.length}</div>`).appendTo($row);
+
+    $(`<div class="row">${engineLayout.length}</div>`);
+    let layout = engineLayout[0];
+    for(let partType in layout)
+    {
+        let part = layout[partType][0], parts = layout[partType].length;
+        $engineCol.append($(`<div class="row">
+    <div class="col">${part.name}</div>
+    <div class="col-3">x ${parts}</div>
+</div>`));
+    }
+
+    return $row;
+}
+
+function addShipEngineGroup()
+{
+    let engineLayout = {
+            thrusters:[],
+            fuelTanks:[]
+        },
+        thrusterJSON = ShipFactory.getThrusterByName($newShipThrusterSelect.val()),
+        thrusters = $newShipThrusterCount.val(),
+        tankJSON = ShipFactory.getFuelTankByName($newShipFuelTankSelect.val()),
+        tanks = $newShipFuelTankCount.val(),
+        engineCount = $newShipEngineCount.val(),
+        engines = [],
+        groupCost = 0;
+    for(let i = 0; i < thrusters; i++)
+    {
+        engineLayout.thrusters.push(thrusterJSON);
+        groupCost += thrusterJSON.cost;
+    }
+    for(let i = 0; i < tanks; i++)
+    {
+        engineLayout.fuelTanks.push(tankJSON);
+        groupCost += tankJSON.cost;
+    }
+    for(let i = 0; i < engineCount; i++)
+    {
+        engines.push(engineLayout);
+    }
+    newShipCost += groupCost;
+    newShipEngineGroups.push({engines:engines});
+    $buildShipEngineGroups.append(makeEngineGroupRow(engines));
+    checkEngineLayoutForValidity();
+    checkModalForValidity();
+    updateShipCost();
+}
+
+function buildNewShip()
+{
+    let ship = ShipFactory.getShipFromJSON({
+        name:$newShipName.val(),
+        chassi:newShipChassi,
+        engineGroups:newShipEngineGroups
+    });
+    Game.addShip(ship);
+    $('#newMissionModal').modal('hide');
+}
 
 $('input[name=gameSpeed]').change(function(){
-    let compression = ($(this).val());
-    Game.compression = compression;
+    Game.compression = ($(this).val());
 });
 
+$newShipThrusterSelect.change(checkModalForValidity).change(checkEngineLayoutForValidity);
+$newShipFuelTankSelect.change(checkModalForValidity).change(checkEngineLayoutForValidity);
+$newShipName.change(checkModalForValidity).change(checkEngineLayoutForValidity);
+$newShipChassiSelect.change(updateNewShipModalForChassi).change(checkEngineLayoutForValidity);
+$addEngineGroupButton.click(addShipEngineGroup);
 $('#launchMissionButton').click(showMissionModal);
+$buildShipButton.click(buildNewShip);
 
 initialiseBuildParts();
+
 
 Game.start();
 draw();
@@ -489,7 +667,12 @@ class Game
 {
     static addNewProbe()
     {
-        this.ships.push(ShipFactory.getNewProbe());
+        this.addShip(ShipFactory.getNewProbe());
+    }
+
+    static addShip(ship)
+    {
+        this.ships.push(ship);
     }
 
     static simulate(seconds)
@@ -563,7 +746,7 @@ class Game
     }
 
 
-};
+}
 Game.ships = [];
 Game.ticking = false;
 Game.ticksPerSecond = 100;
@@ -646,7 +829,7 @@ class Ship extends Listenable
 
     addEngineGroup(engineGroup)
     {
-        if(this.engineGroups.length == this.chassi.engineGroupSlots)
+        if(this.engineGroups.length === this.chassi.engineGroupSlots)
         {
             console.log('Attempted to add extra engine slot beyond cap');
             return;
@@ -663,10 +846,10 @@ class Ship extends Listenable
         }
     }
 
-    ditchEngineGroup(engineGroup)
+    ditchEngineGroup()
     {
         this.engineGroups.shift();
-        if(this.engineGroups.length == 0)
+        if(this.engineGroups.length === 0)
         {
             this.trigger('allFuelConsumed');
         }
@@ -777,10 +960,7 @@ class Ship extends Listenable
 
 module.exports = Ship;
 },{"./Chassi":2,"./EngineGroup":4,"./Listenable":7,"./UniversalConstants":12,"big-js":13}],9:[function(require,module,exports){
-const   ShipPart            = require('./ShipPart'),
-        FuelTank            = require('./FuelTank'),
-        Engine              = require('./Engine'),
-        Ship                = require('./Ship');
+const   Ship                = require('./Ship');
 let probesMade = 0,
     initialised  = false,
     parts = {};
@@ -792,9 +972,46 @@ class ShipFactory
         return {
             CHASSI:{GEN1:{name:'Generation I Probe Core', baseMass:1, engineGroupSlots:2, cost:1000}},
             THRUSTER:{GEN1:{thrust: 10, fuelPerSecond: 0.05, baseMass: 1, name:'Generation I Thruster', cost:2000}},
-            FUEL_TANK:{GEN1:{density: 1, volume: 1, baseMass: 1, name:'Generation I Fuel Tank', cost:2000}}
+            FUEL_TANK:{GEN1:{density: 0.1, volume: 10, baseMass: 1, name:'Generation I Fuel Tank', cost:2000}}
         };
     }
+
+    static getPartByTypeAndName(partType, name)
+    {
+        let parts = this.parts[partType];
+        let part = parts.find(function(part){
+            return part.name === name;
+        });
+        return part;
+    }
+
+    static getChassiByName(name)
+    {
+        if(name)
+        {
+            return this.getPartByTypeAndName('chassi', name);
+        }
+        return null;
+    }
+
+    static getThrusterByName(name)
+    {
+        if(name)
+        {
+            return this.getPartByTypeAndName('thruster', name);
+        }
+        return null;
+    }
+
+    static getFuelTankByName(name)
+    {
+        if(name)
+        {
+            return this.getPartByTypeAndName('fuelTank', name);
+        }
+        return null;
+    }
+
 
     static get parts()
     {
@@ -815,8 +1032,13 @@ class ShipFactory
             }
             initialised = true;
         }
-        console.log(parts);
+
         return parts;
+    }
+
+    static getShipFromJSON(json)
+    {
+        return Ship.fromJSON(json);
     }
 
     static getNewProbe()
@@ -849,7 +1071,7 @@ class ShipFactory
 }
 
 module.exports = ShipFactory;
-},{"./Engine":3,"./FuelTank":5,"./Ship":8,"./ShipPart":10}],10:[function(require,module,exports){
+},{"./Ship":8}],10:[function(require,module,exports){
 const   Big = require('big-js'),
         Listenable = require('./Listenable');
 

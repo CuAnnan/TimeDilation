@@ -69,7 +69,7 @@
                         <h2>Active Ships</h2>
                     </div>
                     <div class="row">
-                        <button class="btn btn-primary" id="launchMissionButton">Launch mission</button>
+                        <button class="btn btn-primary" id="launchMissionButton">Build Ship</button>
                     </div>
                     <div class="row" id="ships"></div>
                 </div>
@@ -121,23 +121,53 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">New Mission</h5>
+                <h5 class="modal-title">New Ship</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
+                <div class="row form-group">
+                    <label class="col-3 col-form-label" for="newShipName">Ship Name:</label>
+                    <div class="col"><input type="text" class="form-control" id="newShipName"/></div>
+                </div>
                 <div class="row">
-                    <div class="col-2">
-                        Chassi:
+                    <div class="col">Ship Cost:</div>
+                    <div class="col" id="newShipCost"></div>
+                </div>
+                <div class="row form-group">
+                    <label class="col-3 col-form-label" for="newShipChassi">Chassi</label>
+                    <div class="col"><select class="form-control" id="newShipChassi"><option value="">Choose One</option></select></div>
+                </div>
+                <div id="engineGroups"></div>
+                <div class="row form-group">
+                    <div class="col-3">
+                        Engine layout:
                     </div>
                     <div class="col">
-                        <select id="newMissionChassiSelect"></select>
+                        <div class="row">
+                            <div class="col"><select class="form-control" id="newShipFuelTank"><option value="">Choose Fuel Tank</option></select></div>
+                            <div class="col-3"><input class="form-control" id="newShipFuelTankCount" type="number" min="1" value="1"/></div>
+                        </div>
+                        <div class="row">
+                            <div class="col"><select class="form-control" id="newShipThruster"><option value="">Choose Thruster</option></select></div>
+                            <div class="col-3"><input class="form-control" id="newShipThrusterCount" type="number" min="1" value="1"/></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-3">Number of engines</div>
+                    <div class="col"><input type="number" id="newShipEngineCount" class="form-control" value="1" min="1" disabled/></div>
+                </div>
+                <div class="row">
+                    <div class="col-3"></div>
+                    <div class="col">
+                        <button type="button" id="addEngineGroup" class="btn btn-primary" disabled>Add Engine Group</button>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" disabled>Launch Ship</button>
+                <button type="button" id="buildShipButton" class="btn btn-primary" disabled>Build Ship</button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
         </div>
