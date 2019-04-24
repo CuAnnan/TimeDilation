@@ -971,8 +971,8 @@ class ShipFactory
     {
         return {
             CHASSI:{GEN1:{name:'Generation I Probe Core', baseMass:1, engineGroupSlots:2, cost:1000}},
-            THRUSTER:{GEN1:{thrust: 10, fuelPerSecond: 0.05, baseMass: 1, name:'Generation I Thruster', cost:2000}},
-            FUEL_TANK:{GEN1:{density: 0.1, volume: 10, baseMass: 1, name:'Generation I Fuel Tank', cost:2000}}
+            THRUSTER:{GEN1:{thrust: 30, fuelPerSecond: 0.005, baseMass: 1, name:'Generation I Thruster', cost:2000}},
+            FUEL_TANK:{GEN1:{density: 1, volume: 1, baseMass: 1, name:'Generation I Fuel Tank', cost:2000}}
         };
     }
 
