@@ -1,4 +1,10 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+module.exports = [
+    {name:'High Earth Orbit', distance:'1000000', reward:5000},
+    {name:'Moon', distance:'385000000', reward:'6000'},
+    {name:'Edge of the Solar System', distance:'2.693e+16', oneWayOnly:true, reward:'1e50', researchCost:5000, locked:true}
+];
+},{}],2:[function(require,module,exports){
 const   Game = require('./lib/Game'),
         ShipFactory = require('./lib/ShipFactory'),
         Ship = require('./lib/Ship');
@@ -254,7 +260,7 @@ draw();
 requestAnimationFrame(gameLoop);
 
 });})(jQuery);
-},{"./lib/Game":6,"./lib/Ship":8,"./lib/ShipFactory":9}],2:[function(require,module,exports){
+},{"./lib/Game":8,"./lib/Ship":10,"./lib/ShipFactory":11}],3:[function(require,module,exports){
 const   ShipPart    = require('./ShipPart');
 
 class Chassi extends ShipPart
@@ -271,7 +277,41 @@ class Chassi extends ShipPart
 }
 
 module.exports = Chassi;
-},{"./ShipPart":10}],3:[function(require,module,exports){
+},{"./ShipPart":12}],4:[function(require,module,exports){
+const Big = require('big-js');
+
+class Destination
+{
+    constructor(data)
+    {
+        this.name = data.name;
+        this.distance = new Big(data.distance);
+        this.reward = new Big(data.reward?data.reward:5000);
+        this.oneWay = data.oneWay?data.oneWay:false;
+        this.researchCost = new Big(data.researchCost?data.researchCost:0);
+        this.locked = data.locked?data.locked:false;
+    }
+
+    toJSON()
+    {
+        return {
+            name:this.name,
+            distance:this.distance.toString(),
+            reward:this.reward,
+            oneWay:this.oneWay
+        }
+    }
+
+
+    fromJSON(json)
+    {
+        let destination = new Destination(json);
+        return destination;
+    }
+}
+
+module.exports = Destination;
+},{"big-js":15}],5:[function(require,module,exports){
 const   Big         = require('big-js'),
         ShipPart    = require('./ShipPart'),
         Thruster    = require('./Thruster'),
@@ -429,7 +469,7 @@ class Engine extends ShipPart
 }
 
 module.exports = Engine;
-},{"./FuelTank":5,"./ShipPart":10,"./Thruster":11,"big-js":13}],4:[function(require,module,exports){
+},{"./FuelTank":7,"./ShipPart":12,"./Thruster":13,"big-js":15}],6:[function(require,module,exports){
 const   ShipPart = require('./ShipPart'),
         Engine = require('./Engine'),
         Big = require('big-js');
@@ -514,7 +554,7 @@ class EngineGroup extends ShipPart
 }
 
 module.exports = EngineGroup;
-},{"./Engine":3,"./ShipPart":10,"big-js":13}],5:[function(require,module,exports){
+},{"./Engine":5,"./ShipPart":12,"big-js":15}],7:[function(require,module,exports){
 const   Big         = require('big-js'),
         ShipPart    = require('./ShipPart');
 
@@ -585,24 +625,32 @@ class FuelTank extends ShipPart
 }
 
 module.exports = FuelTank;
-},{"./ShipPart":10,"big-js":13}],6:[function(require,module,exports){
+},{"./ShipPart":12,"big-js":15}],8:[function(require,module,exports){
 const   ShipFactory = require('./ShipFactory'),
-        Big = require('big-js');
+        Big = require('big-js'),
+        Destination = require('./Destination'),
+        destinationData = require('../data/Destinations');
+
+let initialised = false;
 
 class Game
 {
     static addNewProbe()
     {
-        this.addShip(ShipFactory.getNewProbe());
+        let probe = ShipFactory.getNewProbe();
+        this.addShip(probe);
+        return probe;
     }
 
     static addShip(ship)
     {
+        ship.on(ship.shipArrivedEvent, function(){
+            console.log(this);
+        });
         if(this.canAffordShip(ship))
         {
             this.ships.push(ship);
             this.funding = this.funding.minus(ship.cost);
-            ship.start();
         }
         return this;
     }
@@ -616,10 +664,7 @@ class Game
     {
         for(let ship of this.ships)
         {
-            if(ship.destination)
-            {
-                ship.simulate(seconds);
-            }
+            ship.simulate(seconds);
         }
     }
 
@@ -685,18 +730,38 @@ class Game
         return 1/this.ticksPerSecond;
     }
 
+    static initialise()
+    {
+        if(initialised)
+        {
+            console.log('Game already intitialised');
+            return;
+        }
 
+        this.ships = [];
+        this.ships = [];
+        this.ticking = false;
+        this.ticksPerSecond = 100;
+        this.compression = 1;
+        this.time = 0;
+        this.ticks = 0;
+        this.funding = new Big(10000);
+        this.destinations = [];
+        for(let destination of destinationData)
+        {
+            this.destinations.push(new Destination(destination));
+        }
+
+        console.log('Game intitialised');
+        initialised = true;
+    }
 }
-Game.ships = [];
-Game.ticking = false;
-Game.ticksPerSecond = 100;
-Game.compression = 1;
-Game.time = 0;
-Game.ticks = 0;
-Game.funding = new Big(10000);
+
+
+Game.initialise();
 
 module.exports = Game;
-},{"./ShipFactory":9,"big-js":13}],7:[function(require,module,exports){
+},{"../data/Destinations":1,"./Destination":4,"./ShipFactory":11,"big-js":15}],9:[function(require,module,exports){
 class Listenable
 {
     constructor()
@@ -720,13 +785,26 @@ class Listenable
             }
         }
     }
+
+    triggerOnce(event)
+    {
+        if(this.eventHandlers[event])
+        {
+            for (let handler of this.eventHandlers[event])
+            {
+                handler(this);
+            }
+        }
+        delete this.eventHandlers[event];
+    }
 }
 
 module.exports = Listenable;
-},{}],8:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 const   Big = require('big-js'),
         Chassi = require('./Chassi'),
         EngineGroup = require('./EngineGroup'),
+        Destination = require('./Destination'),
         UniversalConstants = require('./UniversalConstants'),
         Listenable = require('./Listenable');
 
@@ -760,8 +838,13 @@ class Ship extends Listenable
         this.onMission      = data.onMission?data.onMission:false;
         this.acceleration= new Big(data.acceleration?data.acceleration:0);
 
-        this.destination = data.destination?data.destination:null;
+        this.embarked = data.embarked?data.embarked:false;
 
+        this.destination = false;
+
+        /*
+         * Build information
+         */
         this.chassi = null;
         this.engineGroups = [];
         this.hasFuel = false;
@@ -773,7 +856,6 @@ class Ship extends Listenable
 
     setChassi(chassi)
     {
-
         this.chassi = chassi;
         this.engineGroups = [];
         if(chassi)
@@ -873,9 +955,28 @@ class Ship extends Listenable
         return mass;
     }
 
+    static shipArrivedEvent()
+    {
+        return 'shipArrived';
+    }
+
     simulate(seconds)
     {
+        if(this.destination === null || this.embarked === false)
+        {
+            return;
+        }
+
+        if(this.distance.gte(this.destination.distance))
+        {
+            this.triggerOnce(this.shipArrivedEvent);
+            this.velocity = new Big(0);
+            return;
+        }
+
+
         this.acceleration = 0;
+
 
         if(this.engineGroups.length > 0)
         {
@@ -905,8 +1006,9 @@ class Ship extends Listenable
                 this.acceleration = acceleration;
             }
         }
-        let gammaSeconds = this.gamma.times(seconds);
-        this.distance = this.distance.plus(gammaSeconds.times(this.velocity));
+        let gammaSeconds = this.gamma.times(seconds),
+            deltaS = gammaSeconds.times(this.velocity);
+        this.distance = this.distance.plus(deltaS);
         this.relativeTime = this.relativeTime.plus(gammaSeconds);
 
     }
@@ -926,6 +1028,16 @@ class Ship extends Listenable
         return remainingFuel;
     }
 
+    setDestination(destination)
+    {
+        this.destination = destination;
+    }
+
+    embark()
+    {
+        this.embarked = true;
+    }
+
 
     toJSON()
     {
@@ -939,6 +1051,7 @@ class Ship extends Listenable
             chassi:this.chassi.toJSON(),
             onMission:this.onMission,
             engineGroups:[],
+            destination:this.destination.toJSON()
         };
         for(let engineGroup of this.engineGroups)
         {
@@ -968,12 +1081,24 @@ class Ship extends Listenable
             engineGroupJSON.count = engineGroupJSON.count?engineGroupJSON.count:ship.chassi.engineGroupSlots[i];
             ship.addEngineGroup(EngineGroup.fromJSON(engineGroupJSON));
         }
+
+        if(json.destination)
+        {
+            ship.setDestination(Destination.fromJSON(json.destination));
+        }
+
         return ship;
+    }
+
+    report()
+    {
+
+        console.log(`Reached a deltaV of ${this.velocity.toPrecision(4)}m/s Travelled total of ${this.distance.toPrecision(4)}m of ${this.destination.distance.toPrecision(4)}m`);
     }
 }
 
 module.exports = Ship;
-},{"./Chassi":2,"./EngineGroup":4,"./Listenable":7,"./UniversalConstants":12,"big-js":13}],9:[function(require,module,exports){
+},{"./Chassi":3,"./Destination":4,"./EngineGroup":6,"./Listenable":9,"./UniversalConstants":14,"big-js":15}],11:[function(require,module,exports){
 const   Ship                = require('./Ship');
 let probesMade = 0,
     initialised  = false,
@@ -985,8 +1110,8 @@ class ShipFactory
     {
         let parts = {
             CHASSI:{GEN1:{name:'Generation I Probe Core', baseMass:1, engineGroupSlots:[2,1], cost:1000}},
-            THRUSTER:{GEN1:{thrust: 30, fuelPerSecond: 0.005, baseMass: 1, name:'Generation I Thruster', cost:500}},
-            FUEL_TANK:{GEN1:{density: 1, volume: 1, baseMass: 1, name:'Generation I Fuel Tank', cost:500}}
+            THRUSTER:{GEN1:{thrust: 300, fuelPerSecond: 0.0005, baseMass: 1, name:'Generation I Thruster', cost:500}},
+            FUEL_TANK:{GEN1:{density: 0.1, volume: 0.1, baseMass: 1, name:'Generation I Fuel Tank', cost:500}}
         };
         parts.ENGINE = {GEN1S:{name: 'Generation I Single', thrusters:[parts.THRUSTER.GEN1], fuelTanks:[parts.FUEL_TANK.GEN1]}, GEN1D:{name: 'Generation I Double', thrusters:[parts.THRUSTER.GEN1, parts.THRUSTER.GEN1], fuelTanks:[parts.FUEL_TANK.GEN1, parts.FUEL_TANK.GEN1]}};
         return parts;
@@ -1079,7 +1204,7 @@ class ShipFactory
             chassi:this.BASIC_SHIP_PARTS.CHASSI.GEN1,
             engineGroups:[
                 this.BASIC_SHIP_PARTS.ENGINE.GEN1D,
-                this.BASIC_SHIP_PARTS.ENGINE.GEN1S
+                this.BASIC_SHIP_PARTS.ENGINE.GEN1D
             ]
         });
     }
@@ -1091,7 +1216,7 @@ class ShipFactory
 }
 
 module.exports = ShipFactory;
-},{"./Chassi":2,"./Engine":3,"./FuelTank":5,"./Ship":8,"./Thruster":11}],10:[function(require,module,exports){
+},{"./Chassi":3,"./Engine":5,"./FuelTank":7,"./Ship":10,"./Thruster":13}],12:[function(require,module,exports){
 const   Big = require('big-js'),
         Listenable = require('./Listenable');
 
@@ -1143,7 +1268,7 @@ class ShipPart extends Listenable
 }
 
 module.exports = ShipPart;
-},{"./Listenable":7,"big-js":13}],11:[function(require,module,exports){
+},{"./Listenable":9,"big-js":15}],13:[function(require,module,exports){
 const   Big         = require('big-js'),
     ShipPart    = require('./ShipPart');
 
@@ -1170,7 +1295,7 @@ class Thruster extends ShipPart
 }
 
 module.exports = Thruster;
-},{"./ShipPart":10,"big-js":13}],12:[function(require,module,exports){
+},{"./ShipPart":12,"big-js":15}],14:[function(require,module,exports){
 const   Big = require('big-js'),
         C = new Big(299792458),
         C_SQUARED = C.pow(2),
@@ -1179,7 +1304,7 @@ module.exports = {
     C:C,
     C_SQUARED:C_SQUARED
 };
-},{"big-js":13}],13:[function(require,module,exports){
+},{"big-js":15}],15:[function(require,module,exports){
 /* big.js v3.1.3 https://github.com/MikeMcl/big.js/LICENCE */
 ;(function (global) {
     'use strict';
@@ -2323,4 +2448,4 @@ module.exports = {
     }
 })(this);
 
-},{}]},{},[1]);
+},{}]},{},[2]);
